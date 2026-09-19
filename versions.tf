@@ -8,7 +8,7 @@ terraform {
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
+      version = "~> 4.52"
     }
     random = {
       source  = "hashicorp/random"
@@ -23,7 +23,7 @@ terraform {
   # backend "s3" {
   #   bucket         = "SEU_BUCKET_DE_STATE"
   #   key            = "escapa/k3s-single-node/terraform.tfstate"
-  #   region         = "us-east-1"
+  #   region         = "us-east-2"
   #   dynamodb_table = "terraform-locks"
   #   encrypt        = true
   # }

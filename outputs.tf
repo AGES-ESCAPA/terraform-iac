@@ -37,3 +37,9 @@ output "backend_url" {
   description = "URL publica do backend/API (via Cloudflare Tunnel)"
   value       = "https://${var.backend_subdomain}.${var.root_domain}"
 }
+
+output "cloudflare_tunnel_token" {
+  description = "Token do conector cloudflared; transferir diretamente para o Secret do cluster"
+  value       = cloudflare_zero_trust_tunnel_cloudflared.escapa.tunnel_token
+  sensitive   = true
+}

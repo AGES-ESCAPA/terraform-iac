@@ -1,23 +1,22 @@
-# Segredo do túnel: 32 bytes aleatórios, usados tanto para registrar o túnel na Cloudflare
-# quanto para gerar o credentials.json que o cloudflared usa dentro do cluster.
-# Como os dois lados usam o MESMO valor gerado aqui, não precisamos chamar a API da Cloudflare
-# de novo pra "buscar" um token depois -- o credentials.json é montado localmente.
+# Segredo usado no registro do túnel. O conector usa o tunnel_token retornado
+# pelo provider; as regras de ingress são gerenciadas remotamente pela Cloudflare.
 resource "random_id" "tunnel_secret" {
   byte_length = 32
 }
 
-resource "cloudflare_tunnel" "escapa" {
+resource "cloudflare_zero_trust_tunnel_cloudflared" "escapa" {
   account_id = var.cloudflare_account_id
   name       = "${var.project_name}-k3s"
   secret     = random_id.tunnel_secret.b64_std
+  config_src = "cloudflare"
 }
 
 # Ingress remotamente gerenciado: o cloudflared no cluster só precisa se autenticar
 # e conectar -- as regras de roteamento (hostname -> serviço interno) vivem na Cloudflare,
 # consultadas automaticamente pelo conector.
-resource "cloudflare_tunnel_config" "escapa" {
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "escapa" {
   account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_tunnel.escapa.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.escapa.id
 
   config {
     ingress_rule {
@@ -43,7 +42,7 @@ resource "cloudflare_record" "frontend" {
   zone_id = var.cloudflare_zone_id
   name    = var.frontend_subdomain
   type    = "CNAME"
-  content = "${cloudflare_tunnel.escapa.id}.cfargotunnel.com"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.escapa.id}.cfargotunnel.com"
   proxied = true
 }
 
@@ -51,6 +50,6 @@ resource "cloudflare_record" "backend" {
   zone_id = var.cloudflare_zone_id
   name    = var.backend_subdomain
   type    = "CNAME"
-  content = "${cloudflare_tunnel.escapa.id}.cfargotunnel.com"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.escapa.id}.cfargotunnel.com"
   proxied = true
 }

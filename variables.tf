@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "Região AWS onde o node será provisionado"
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "project_name" {
@@ -11,9 +11,9 @@ variable "project_name" {
 }
 
 variable "instance_type" {
-  description = "Tipo da instância EC2. t3.large (2 vCPU/8GB) é o mínimo confortável p/ rodar ArgoCD + Prometheus + Loki + Vault + Minio + Postgres + app na mesma VM."
+  description = "Tipo da instância EC2. Padrão: t4g.medium (ARM64, 2 vCPU/4 GiB). Dimensione os workloads do k3s para a memória disponível."
   type        = string
-  default     = "t3.large"
+  default     = "t4g.medium"
 }
 
 variable "root_volume_size_gb" {
@@ -33,9 +33,22 @@ variable "admin_cidr" {
 }
 
 variable "gitops_repo_url" {
-  description = "URL git do repositório gitops-escapa (ex: https://github.com/SEU_ORG/gitops-escapa.git). Se preenchido, o bootstrap do ArgoCD (Applications raiz) é aplicado automaticamente no primeiro boot. Deixe vazio para aplicar manualmente depois."
+  description = "URL HTTPS do repositório GitOps. Se preenchido, o primeiro boot clona o repositório e configura seu acesso no ArgoCD. Os Applications raiz só são aplicados se bootstrap_gitops for true."
   type        = string
   default     = ""
+}
+
+variable "gitops_token" {
+  description = "Token do GitHub usado no clone inicial e no ArgoCD para acessar o repositório GitOps por HTTPS. Exige Contents: Read; pode ter Read and write se também for usado pelo CI. Deixe vazio para repositório público."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "bootstrap_gitops" {
+  description = "Aplica os Applications raiz de infraestrutura e apps no primeiro boot. Mantenha false para preparar k3s/ArgoCD antes de publicar as imagens da aplicação."
+  type        = bool
+  default     = false
 }
 
 # --- GitHub Container Registry (pull das imagens do frontend/backend) ---
@@ -46,7 +59,7 @@ variable "github_username" {
 }
 
 variable "github_pat" {
-  description = "GitHub Personal Access Token (classic ou fine-grained) com escopo read:packages, usado só para o cluster puxar as imagens do GHCR"
+  description = "GitHub Personal Access Token classic com escopo read:packages, usado só para o cluster puxar as imagens do GHCR. Tokens fine-grained não suportam GitHub Packages."
   type        = string
   sensitive   = true
 }
