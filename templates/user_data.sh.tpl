@@ -17,26 +17,27 @@ done
 
 # 3. Namespace da aplicacao + secret de pull do GHCR
 #    (criado aqui, fora do git, para nao commitar credencial nenhuma no repo GitOps)
-$KUBECTL create namespace escapa-prod --dry-run=client -o yaml | $KUBECTL apply -f -
+$KUBECTL create namespace escapa --dry-run=client -o yaml | $KUBECTL apply -f -
 
 $KUBECTL create secret docker-registry ghcr-pull-secret \
   --docker-server=ghcr.io \
   --docker-username='${github_username}' \
   --docker-password='${github_pat}' \
-  -n escapa-prod \
+  -n escapa \
   --dry-run=client -o yaml | $KUBECTL apply -f -
 
-# 4. Namespace + token do túnel gerenciado remotamente pela Cloudflare.
+# 4. Namespace + credenciais do túnel gerenciado pelo ConfigMap do GitOps.
 $KUBECTL create namespace cloudflared --dry-run=client -o yaml | $KUBECTL apply -f -
 
 (
   umask 077
-  tunnel_token_file="$(mktemp)"
-  trap 'rm -f -- "$tunnel_token_file"' EXIT
-  printf '%s' '${cf_tunnel_token_b64}' | base64 --decode > "$tunnel_token_file"
-  test -s "$tunnel_token_file"
-  $KUBECTL create secret generic cloudflared-credentials \
-    --from-file=token="$tunnel_token_file" \
+  tunnel_credentials_file="$(mktemp)"
+  trap 'rm -f -- "$tunnel_credentials_file"' EXIT
+  printf '%s' '${cf_tunnel_credentials_b64}' | base64 --decode > "$tunnel_credentials_file"
+  test -s "$tunnel_credentials_file"
+  $KUBECTL create secret generic cloudflared-local-credentials \
+    --from-file=credentials.json="$tunnel_credentials_file" \
+    --from-literal=tunnel-id='${cf_tunnel_id}' \
     -n cloudflared \
     --dry-run=client -o yaml | $KUBECTL apply --server-side -f -
 )

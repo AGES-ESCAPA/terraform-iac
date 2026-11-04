@@ -38,8 +38,13 @@ output "backend_url" {
   value       = "https://${var.backend_subdomain}.${var.root_domain}"
 }
 
-output "cloudflare_tunnel_token" {
-  description = "Token do conector cloudflared; transferir diretamente para o Secret do cluster"
-  value       = cloudflare_zero_trust_tunnel_cloudflared.escapa.tunnel_token
+output "cloudflare_local_tunnel_cname" {
+  description = "Destino dos CNAMEs proxied cadastrados manualmente no painel Cloudflare"
+  value       = "${cloudflare_zero_trust_tunnel_cloudflared.ingress.id}.cfargotunnel.com"
+}
+
+output "cloudflare_local_tunnel_credentials" {
+  description = "Credenciais JSON do túnel local; transferir diretamente para o Secret do cluster"
+  value       = local.cloudflare_local_credentials
   sensitive   = true
 }

@@ -123,56 +123,53 @@ kubectl apply -f /caminho/para/gitops-escapa/bootstrap/infrastructure-root.yaml
 kubectl apply -f /caminho/para/gitops-escapa/bootstrap/apps-root.yaml
 ```
 
-## Correção do Cloudflare Tunnel em um cluster existente
+## Cloudflare Tunnel local e DNS manual
 
-O túnel usa `config_src = "cloudflare"`: o Terraform gerencia as rotas e o Deployment
-GitOps usa `TUNNEL_TOKEN` vindo da chave `token` do Secret `cloudflared-credentials`.
-O `credentials.json` da implementação anterior não é usado pelo novo Deployment.
-O bootstrap atualizado prepara esse Secret para novas instâncias; em uma EC2 já criada,
-a atualização é manual. Não reaplique o bootstrap inteiro.
+O túnel `escapa-ingress` usa `config_src = "local"`. O Terraform cria sua identidade
+e credenciais; as rotas ficam no ConfigMap do `cloudflared` no GitOps. O conector
+encaminha `*.escapaages.online` para o Traefik, que usa os Ingress de cada aplicação.
+Os CNAMEs proxied são cadastrados pelo administrador no painel Cloudflare.
 
-No provider Cloudflare 4.52.9, mudar `config_src` exige substituir o túnel. Confira o plano:
-o ID pode mudar e os CNAMEs precisam acompanhar. Para esta correção excepcional, use
-um plano restrito à configuração do túnel e aos dois registros DNS, sem atualizar a EC2:
+O repositório mantém somente o túnel local `escapa-ingress`.
+Os blocos `removed` com `destroy = false` deixam de gerenciar os CNAMEs `app`/`api`
+sem excluí-los. Em uma instalação nova, esses registros também devem ser criados
+manualmente. Terraform >= 1.7 é necessário para esses blocos.
+
+No computador local, dentro de `terraform-iac`, prepare somente o novo túnel:
 
 ```bash
-terraform plan -out=.terraform/cloudflare-tunnel.tfplan \
-  -target=cloudflare_zero_trust_tunnel_cloudflared_config.escapa \
-  -target=cloudflare_record.frontend \
-  -target=cloudflare_record.backend
+terraform validate
+terraform plan -out=.terraform/local-tunnel.tfplan -target=cloudflare_zero_trust_tunnel_cloudflared.ingress
 ```
 
-O túnel e seu segredo entram no plano por dependência. Revise as substituições antes
-de aplicar o plano salvo. O arquivo contém dados sensíveis e fica dentro de `.terraform/`,
-que já é ignorado pelo Git. `-target` é usado aqui para recuperação pontual, não como rotina.
-
-Depois de revisar e aplicar esse plano, transfira o token diretamente ao cluster, no computador local:
+O plano direcionado deve criar apenas o túnel local e seu segredo aleatório, sem
+alterar a EC2 nem destruir o túnel anterior. O aviso de `-target` é esperado nesta
+migração. Depois de revisar o plano, execute:
 
 ```bash
-terraform apply .terraform/cloudflare-tunnel.tfplan
+terraform apply .terraform/local-tunnel.tfplan
 bash scripts/update-cloudflared-secret.sh ubuntu@SEU_IP ~/.ssh/escapa_aws
+terraform output -raw cloudflare_local_tunnel_cname
 ```
 
-O script requer Terraform, Python 3 e SSH localmente, além do namespace `cloudflared`
-já criado pelo bootstrap. Ele não imprime o token e mantém o conteúdo fora do Git.
-Não execute `terraform output -raw cloudflare_tunnel_token` isoladamente para compartilhar a saída.
+O script existente agora transfere `credentials.json` e `tunnel-id` para o Secret
+`cloudflared-local-credentials` via SSH, sem imprimir credenciais nem criar arquivos
+locais. Ele requer Terraform, Python 3, SSH e o namespace `cloudflared` existente.
+Não imprima nem compartilhe `cloudflare_local_tunnel_credentials`.
 
-Publique os manifests corrigidos do repositório GitOps antes de sincronizar a Application
-`cloudflared`. Ela está temporariamente em sincronização manual. Valide no node:
+Continue pelo [procedimento no GitOps](https://github.com/AGES-ESCAPA/gitos-escapa/blob/main/infrastructure/cloudflared/README.md):
+publique os manifests, sincronize os Ingress e o novo conector e só depois cadastre
+os CNAMEs usando o destino retornado. O UUID nunca precisa ser colocado no ConfigMap:
+o Deployment obtém o ID e as credenciais do Secret.
 
-```bash
-sudo k3s kubectl -n cloudflared rollout status deployment/cloudflared --timeout=180s
-sudo k3s kubectl -n cloudflared logs deployment/cloudflared --tail=50
-```
-
-Se atualizar o Secret com pods já em execução, reinicie o Deployment explicitamente
-(`sudo k3s kubectl -n cloudflared rollout restart deployment/cloudflared`), pois a variável
-de ambiente só recebe o novo token ao iniciar o container. O túnel conectado não garante
-resposta dos hosts `app`/`api` enquanto seus Services e aplicações não existirem.
-
-Depois da recuperação, execute um `terraform plan` completo para revisar diferenças
-pendentes. Alterações de `user_data` podem parar/iniciar a EC2 e não reexecutam o bootstrap;
-não aplique esse plano completo sem avaliar esses efeitos.
+Um plano direcionado pode deixar pendente a remoção dos CNAMEs do state. Depois da
+migração, execute um `terraform plan` completo para revisar isso e outras diferenças.
+Os blocos `removed` preservam os registros reais; não remova esses blocos enquanto
+houver states antigos a migrar. Não aplique alterações da EC2 só para atualizar o túnel:
+o novo `user_data` é para instâncias futuras e pode causar stop/start da atual sem
+reexecutar o bootstrap. Como os recursos do túnel remoto foram retirados da configuração,
+um plano completo também proporá remover o túnel antigo, sua configuração e seu
+segredo aleatório. O conector atual usa somente `cloudflared-local-credentials`.
 
 ## Limitações conhecidas (coerentes com ser 1 node só)
 

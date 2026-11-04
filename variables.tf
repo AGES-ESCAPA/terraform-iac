@@ -98,3 +98,27 @@ variable "backend_subdomain" {
   type        = string
   default     = "api"
 }
+
+variable "schedule_enabled" {
+  description = "Liga/desliga automaticamente a EC2 nos horarios abaixo (EventBridge Scheduler)."
+  type        = bool
+  default     = true
+}
+
+variable "schedule_timezone" {
+  description = "Fuso horario dos agendamentos de liga/desliga."
+  type        = string
+  default     = "America/Sao_Paulo"
+}
+
+variable "schedule_start_cron" {
+  description = "Expressao do EventBridge Scheduler para ligar a EC2 (padrao: todo dia 09:00)."
+  type        = string
+  default     = "cron(0 9 * * ? *)"
+}
+
+variable "schedule_stop_cron" {
+  description = "Expressao do EventBridge Scheduler para desligar a EC2 (padrao: todo dia 21:00)."
+  type        = string
+  default     = "cron(0 21 * * ? *)"
+}

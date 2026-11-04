@@ -52,17 +52,25 @@ resource "aws_instance" "k3s_node" {
   }
 
   user_data = templatefile("${path.module}/templates/user_data.sh.tpl", {
-    bootstrap_gitops    = var.bootstrap_gitops
-    gitops_repo_url     = var.gitops_repo_url
-    gitops_repo_url_b64 = base64encode(var.gitops_repo_url)
-    gitops_token_b64    = base64encode(var.gitops_token)
-    github_username    = var.github_username
-    github_pat         = var.github_pat
-    cf_tunnel_token_b64 = base64encode(cloudflare_zero_trust_tunnel_cloudflared.escapa.tunnel_token)
+    bootstrap_gitops          = var.bootstrap_gitops
+    gitops_repo_url           = var.gitops_repo_url
+    gitops_repo_url_b64       = base64encode(var.gitops_repo_url)
+    gitops_token_b64          = base64encode(var.gitops_token)
+    github_username           = var.github_username
+    github_pat                = var.github_pat
+    cf_tunnel_credentials_b64 = base64encode(local.cloudflare_local_credentials)
+    cf_tunnel_id              = cloudflare_zero_trust_tunnel_cloudflared.ingress.id
   })
 
   # O user_data só executa no primeiro boot. Alterá-lo depois não reaplica o
   # bootstrap; a atualização do cluster existente precisa ser feita explicitamente.
+  #
+  # A AMI vem de "most_recent" e o user_data muda com o template: sem ignorar os
+  # dois, um apply recriaria a VM e apagaria os volumes local-path (banco, Vault,
+  # Garage). Para trocar de AMI de propósito, use -replace=aws_instance.k3s_node.
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 
   tags = {
     Name    = "${var.project_name}-k3s-node"
