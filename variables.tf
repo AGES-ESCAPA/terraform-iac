@@ -11,9 +11,9 @@ variable "project_name" {
 }
 
 variable "instance_type" {
-  description = "Tipo da instância EC2. Padrão: t4g.medium (ARM64, 2 vCPU/4 GiB). Dimensione os workloads do k3s para a memória disponível."
+  description = "Tipo da instância EC2. Padrão: t4g.large (ARM64, 2 vCPU/8 GiB), autorizada pelo Arquiteto da AGES junto com o liga/desliga agendado (scheduler.tf). Dimensione os workloads do k3s para a memória disponível."
   type        = string
-  default     = "t4g.medium"
+  default     = "t4g.large"
 }
 
 variable "root_volume_size_gb" {

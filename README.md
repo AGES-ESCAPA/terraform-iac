@@ -6,7 +6,7 @@ cria a VM e a rede; a partir do momento em que o k3s está de pé, quem manda é
 
 ## O que é criado
 
-- **EC2 sob demanda (On-Demand)** (`t4g.medium` por padrão, 2 vCPU/4 GiB, Ubuntu 22.04 ARM64) em **us-east-2 (Ohio)**,
+- **EC2 sob demanda (On-Demand)** (`t4g.large` por padrão, 2 vCPU/8 GiB, Ubuntu 22.04 ARM64) em **us-east-2 (Ohio)**,
   com disco `gp3` de 60GB — SO + containers + PVCs
   (via `local-path-provisioner`, que já vem no k3s).
 - **Elastic IP** — IP público fixo, sobrevive a stop/start da instância.
@@ -80,9 +80,10 @@ um token **classic** com `read:packages`; o token fine-grained do GitOps não at
 
 ### Compatibilidade com a conta e com ARM64
 
-- O guia da AGES exige `us-east-2` e ainda lista apenas famílias T2/T3 até `medium`.
-  O padrão `t4g.medium` segue a especificação mais recente do projeto; confirme que a
-  política da conta também permite esse tipo antes de provisionar.
+- O guia da AGES exige `us-east-2` e lista apenas famílias T2/T3 até `medium`.
+  O padrão `t4g.large` é uma exceção autorizada pelo Arquiteto da AGES, condicionada
+  ao liga/desliga agendado (`scheduler.tf`: liga 09:00, desliga 21:00, America/Sao_Paulo).
+  Não desative o agendamento nem aumente o tipo sem nova autorização.
 - A AMI é selecionada pela arquitetura retornada pela AWS para `instance_type`:
   `arm64` para T4g e `amd64` para instâncias x86. A consulta exige
   `ec2:DescribeInstanceTypes`, além das permissões de provisionamento.

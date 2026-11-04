@@ -1,6 +1,6 @@
 aws_region     = "us-east-2"
 project_name   = "escapa"
-instance_type  = "t4g.medium"
+instance_type  = "t4g.large"
 
 # Sua chave publica SSH (nao a privada!):
 #   cat ~/.ssh/id_ed25519.pub
